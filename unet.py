@@ -180,9 +180,9 @@ def createAndTrainModel(**kwargs):
 
     lossLog = []
 
-    for epoch in range(num_epochs):
-        loss = 0
-        for in_images, gt_images in aeDataloader:
+    for in_images, gt_images in aeDataloader:
+        for epoch in range(num_epochs):
+            loss = 0
             in_images = in_images.to(device)
             gt_images = gt_images.to(device)
             optimizer.zero_grad()
