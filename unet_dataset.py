@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 
 
 def pack_raw(file_name, bps=14):
-    raw = file_name.imread(file_name)
+    raw = rawpy.imread(file_name)
     # pack Bayer image to 4 channels
     im = raw.raw_image_visible.astype(np.float32)
     im = np.maximum(im - 512, 0) / ((2 ** bps - 1) - 512)  # subtract the black level
