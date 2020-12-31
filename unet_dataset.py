@@ -7,7 +7,8 @@ import torchvision
 from torch.utils.data import Dataset
 
 
-def pack_raw(raw, bps=14):
+def pack_raw(file_name, bps=14):
+    raw = file_name.imread(file_name)
     # pack Bayer image to 4 channels
     im = raw.raw_image_visible.astype(np.float32)
     im = np.maximum(im - 512, 0) / ((2 ** bps - 1) - 512)  # subtract the black level
@@ -45,7 +46,7 @@ class LocalFilesUnetDataset(Dataset):
             in_name = os.path.join(in_path, in_name)
             gt_name = os.path.join(gt_path, gt_name)
 
-            self.in_images.append(pack_raw(rawpy.imread(in_name), bps) * ratio)
+            self.in_images.append(pack_raw(in_name, bps) * ratio)
 
             gt_raw = rawpy.imread(gt_name)
             im = gt_raw.postprocess(use_camera_wb=True, half_size=False, no_auto_bright=True, output_bps=16)
