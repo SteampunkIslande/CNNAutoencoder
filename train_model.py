@@ -33,6 +33,7 @@ parser.add_argument("--epochs", help="Number of training epochs", type=int, defa
 parser.add_argument("--log_file_name", help="Path to a new file to log the results of training")
 parser.add_argument("--save_frequency", help="How many epochs before saving a checkpoint", type=int, default=10)
 parser.add_argument("--run_name", help="Just to give a name to the run, so you can quickly identify it")
+parser.add_argument("--model_name", help="The path where to save the model")
 
 # Loss function related
 parser.add_argument("--criterion", help="Loss function to minimize for training", choices=crits.keys(),
@@ -67,4 +68,9 @@ if __name__ == "__main__":
         createAndTrainModelArgs["run_name"] = args.run_name
 
     model = createAndTrainModel(**createAndTrainModelArgs)
+
+    model_name = args.model_name if args.model_name else f"Model_{args.batch_size}_{args.epochs}_{timeString()}"
+
     model.cpu()  # Before ever saving model to file, make sure it has host memory mapping (won't depend on harware)
+    torch.save(model.state_dict(),model_name)
+
