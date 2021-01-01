@@ -48,7 +48,7 @@ parser.add_argument("image", help="Path to the image to denoise")
 parser.add_argument("exposure_correction", help="Exposure correction ratio for rendering", type=float)
 
 parser.add_argument("-o","--output",help="Where to save the result")
-parser.add_argument("--tile_size",default=256)
+parser.add_argument("--tile_size",default=256, type=int)
 
 args = parser.parse_args()
 
