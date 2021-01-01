@@ -203,9 +203,9 @@ def createAndTrainModel(**kwargs):
 
         print(f"epoch [{epoch + 1}/{num_epochs}], loss:{loss:.4f}")
 
-        # We save the progress every save_frequency epoch, but don't want to save first as it is useless
-        if (epoch + 1) % save_frequency == 0 and epoch > 0:
-            # Get French time stamp even if Colab's GPUs are far away
+        # We save the progress every save_frequency epoch
+        if (epoch + 1) % save_frequency == 0:
+            # Get French time stamp even if Colab's GPUs don't have consistent timezones
             timeString = datetime.now(pytz.timezone("CET")).strftime("%b-%d-%Hh%M")
             check_point_dict = {
                 "model_state_dict": model.state_dict(),
