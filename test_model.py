@@ -39,25 +39,34 @@ def loadModel(path):
     ae.eval()
     return ae
 
-parser = argparse.ArgumentParser()
+def renderImage(model,input_image,exposure_correction,tile_size):
+    """
+    :param model: The loaded model you want to render input_image with
+    :param input_image: Path to an image you want to correct exposure
+    :param exposure_correction: The scale ratio of exposure correction
+    :param tile_size: The size of the chunks for rendering
+    :return: a 3d numpy array of depth 3 representing the rendered image
+    """
+    renderer = ModelRenderer(model, exposure_correction)
+    input_array = pack_raw(input_image)
+    return renderTiles(input_array, tile_size, renderer)
 
-parser.add_argument("model_file_name", help="Path to the trained model to test")
-
-parser.add_argument("image", help="Path to the image to denoise")
-
-parser.add_argument("exposure_correction", help="Exposure correction ratio for rendering", type=float)
-
-parser.add_argument("-o","--output",help="Where to save the result")
-parser.add_argument("--tile_size",default=256, type=int)
-
-args = parser.parse_args()
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("model_file_name", help="Path to the trained model to test")
+
+    parser.add_argument("image", help="Path to the image to denoise")
+
+    parser.add_argument("exposure_correction", help="Exposure correction ratio for rendering", type=float)
+
+    parser.add_argument("-o", "--output", help="Where to save the result")
+    parser.add_argument("--tile_size", default=256, type=int)
+
+    args = parser.parse_args()
     model = loadModel(args.model_file_name)
-    exposure_correction = args.exposure_correction
-    renderer = ModelRenderer(model,exposure_correction)
-    input_array = pack_raw(args.image)
-    output_array = renderTiles(input_array,args.tile_size,renderer)
+    output_array = renderImage(model,args.input_image,args.exposure_correction,args.tile_size)
     image = ToPILImage()(output_array)
     output_fn = args.output if args.output else "result.jpg"
     image.save(output_fn)
