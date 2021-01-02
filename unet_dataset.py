@@ -95,4 +95,13 @@ class LocalFilesUnetDataset(Dataset):
             self.gt_patches.append(gt_patch)
 
     def __getitem__(self, index):
-        return self.npArrToTensor(self.in_patches[self.indices[index]]), self.npArrToTensor(self.gt_patches[self.indices[index]])
+        if self.in_patches[self.indices[index]].data.contiguous:
+            in_tensor = self.npArrToTensor(self.in_patches[self.indices[index]]) # No need to copy, it's contiguous
+        else:
+            in_tensor = self.npArrToTensor(self.in_patches[self.indices[index]].copy()) # Not contiguous, and can't create tensor without actually copying
+
+        if self.gt_patches[self.indices[index]].data.contiguous:
+            out_tensor = self.npArrToTensor(self.gt_patches[self.indices[index]]) # No need to copy, it's contiguous
+        else:
+            out_tensor = self.npArrToTensor(self.gt_patches[self.indices[index]].copy()) # Not contiguous, and can't create tensor without actually copying
+        return in_tensor,out_tensor
