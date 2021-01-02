@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     model = loadModel(args.model_file_name)
-    output_array = renderImage(model,args.input_image,args.exposure_correction,args.tile_size)
+    output_array = renderImage(model,args.image,args.exposure_correction,args.tile_size)
     image = ToPILImage()(output_array)
     output_fn = args.output if args.output else "result.jpg"
     image.save(output_fn)
