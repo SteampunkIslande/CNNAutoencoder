@@ -26,16 +26,14 @@ def pack_raw(file_name, bps=14):
 
 
 class LocalFilesUnetDataset(Dataset):
-    def __init__(self, images_list_file_name, count=100, bps=14, patch_size=256):
+    def __init__(self,images_list_file_name, gt_path, in_path, count=100, bps=14, patch_size=256):
         f = open(images_list_file_name)
-        gt_path = "dataset/Sony/long"
-        in_path = "dataset/Sony/short"
         self.in_images = []
         self.gt_images = []
-        self.path_size = patch_size
+        self.patch_size = patch_size
         i = 0
         for line in f:
-            if i >= count:
+            if i >= count: # Only take the count first images of the list
                 break
             in_name, gt_name, _, _ = line.split(" ")
 
@@ -58,34 +56,43 @@ class LocalFilesUnetDataset(Dataset):
 
         assert len(self.gt_images) == len(self.in_images), f"There must be as many ground truth images as inputs"
 
+        self.npArrToTensor = torchvision.transforms.ToTensor()
+
         self.indices = list(range(len(self.gt_images)))
         shuffle(self.indices)
+
+        self.in_patches=[] # Define in_patches now to avoid referenced before assignement error
+        self.gt_patches=[]
+
+        self.generatePatches()
 
     def __len__(self):
         return len(self.indices)
 
+    def generatePatches(self):
+        self.in_patches=[] # Clear the patches without risking to damage in_images the potential previous ones might refer to
+        self.gt_patches=[]
+        for in_image, gt_image in zip(self.in_images,self.gt_images):
+            H = in_image.shape[0]
+            W = in_image.shape[1]
+            ps = self.patch_size
+
+            xx = np.random.randint(0, W - ps)
+            yy = np.random.randint(0, H - ps)
+            input_patch = in_image[yy:yy + ps, xx:xx + ps, :]
+            gt_patch = gt_image[yy * 2:yy * 2 + ps * 2, xx * 2:xx * 2 + ps * 2, :]
+
+            if np.random.randint(2, size=1)[0] == 1:  # random flip
+                input_patch = np.flip(input_patch, axis=1)
+                gt_patch = np.flip(gt_patch, axis=1)
+            if np.random.randint(2, size=1)[0] == 1:
+                input_patch = np.flip(input_patch, axis=0)
+                gt_patch = np.flip(gt_patch, axis=0)
+            if np.random.randint(2, size=1)[0] == 1:  # random transpose
+                input_patch = np.transpose(input_patch, (1, 0, 2))
+                gt_patch = np.transpose(gt_patch, (1, 0, 2))
+            self.in_patches.append(input_patch)
+            self.gt_patches.append(gt_patch)
+
     def __getitem__(self, index):
-        npArrToTensor = torchvision.transforms.ToTensor()
-        in_image = self.in_images[self.indices[index]]
-        gt_image = self.gt_images[self.indices[index]]
-
-        H = self.in_images[self.indices[index]].shape[0]
-        W = self.in_images[self.indices[index]].shape[1]
-        ps = self.path_size
-
-        xx = np.random.randint(0, W - ps)
-        yy = np.random.randint(0, H - ps)
-        input_patch = in_image[yy:yy + ps, xx:xx + ps, :]
-        gt_patch = gt_image[yy * 2:yy * 2 + ps * 2, xx * 2:xx * 2 + ps * 2, :]
-
-        if np.random.randint(2, size=1)[0] == 1:  # random flip
-            input_patch = np.flip(input_patch, axis=1).copy()
-            gt_patch = np.flip(gt_patch, axis=1).copy()
-        if np.random.randint(2, size=1)[0] == 1:
-            input_patch = np.flip(input_patch, axis=0).copy()
-            gt_patch = np.flip(gt_patch, axis=0).copy()
-        if np.random.randint(2, size=1)[0] == 1:  # random transpose
-            input_patch = np.transpose(input_patch, (1, 0, 2)).copy()
-            gt_patch = np.transpose(gt_patch, (1, 0, 2)).copy()
-
-        return npArrToTensor(input_patch), npArrToTensor(gt_patch)
+        return self.npArrToTensor(self.in_patches[self.indices[index]]), self.npArrToTensor(self.gt_patches[self.indices[index]])
