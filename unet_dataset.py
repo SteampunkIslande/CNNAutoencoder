@@ -70,12 +70,15 @@ class LocalFilesUnetDataset(Dataset):
         return len(self.indices)
 
     def generatePatches(self):
+        # self.in_patches and self.gt_patches are numpy array's slices that refer to self.in_images and self.gt_images respectively
         self.in_patches=[] # Clear the patches without risking to damage in_images the potential previous ones might refer to
         self.gt_patches=[]
-        for in_image, gt_image in zip(self.in_images,self.gt_images):
+        ps = self.patch_size
+
+        for index, (in_image, gt_image) in enumerate(zip(self.in_images,self.gt_images)):
+            print(f"Generating patch {index+1} / {len(self.in_images)}...",end="")
             H = in_image.shape[0]
             W = in_image.shape[1]
-            ps = self.patch_size
 
             xx = np.random.randint(0, W - ps)
             yy = np.random.randint(0, H - ps)
@@ -93,6 +96,7 @@ class LocalFilesUnetDataset(Dataset):
                 gt_patch = np.transpose(gt_patch, (1, 0, 2))
             self.in_patches.append(input_patch)
             self.gt_patches.append(gt_patch)
+            print("done.")
 
     def __getitem__(self, index):
         if self.in_patches[self.indices[index]].data.contiguous:

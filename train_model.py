@@ -47,6 +47,7 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
     dataset = LocalFilesUnetDataset(args.files_list,"dataset/Sony/long","dataset/Sony/short")
+    print(f"Dataset loaded !")
     createAndTrainModelArgs = {
         "dataset": dataset,
         "batch_size": args.batch_size,
@@ -59,8 +60,8 @@ if __name__ == "__main__":
         createAndTrainModelArgs["log_file_name"] = args.log_file_name
 
     if args.optimizer_params:
-        optInfo = json.load(open(args.optimizer_params))
-        optimizerFactory = optimizers[optInfo["name"]](**optInfo["params"])
+        optInfo = json.load(open(args.optimizer_params)) # Get the optimizer's parameters (dict with optimizer name and parameters in param field)
+        optimizerFactory = optimizers[optInfo["name"]](**optInfo["params"]) # optimizers is a dict of optimizer factories. These factories are initialized with params
         print(f"Created optimizer with parameters {optInfo['params']}")
         createAndTrainModelArgs["optimizer"] = optimizerFactory
 
