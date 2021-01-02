@@ -46,7 +46,7 @@ parser.add_argument("--learning_rate", help="Optimizer's learning rate", type=fl
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    dataset = LocalFilesUnetDataset(args.files_list)
+    dataset = LocalFilesUnetDataset(args.files_list,"dataset/Sony/long","dataset/Sony/short")
     createAndTrainModelArgs = {
         "dataset": dataset,
         "batch_size": args.batch_size,
