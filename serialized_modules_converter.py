@@ -2,6 +2,8 @@ import torch
 
 from itertools import zip_longest
 
+import argparse
+
 
 def saveOrderedDicts(serialized_dict, destination_dict, path):
     """
@@ -58,3 +60,27 @@ def transferLearning(path_to_serialized_dict,model,translation_file_path):
     translation_dict = csvToTranslationDict(translation_file_path)
     serialized_dict = torch.load(path_to_serialized_dict, map_location=lambda storage,loc : storage)
     model.load_state_dict(translateStateDicts(translation_dict,serialized_dict))
+
+def translateSerializedObjects(in_file_name,out_file_name,translation_file):
+    """
+    This function remaps a serialized dict (inside in_in_file_name) and writes the translation into out_out_file_name.
+    This operation requires a csv translation file, where first column translates to second
+
+    :param in_file_name: The file with a serialized dict you want to translate the keys from
+    :param out_file_name: A new file where you want to write the same values as in in_file_name but with translated keys
+    :param translation_file: A CSV file that translates key names from first column into other key names in the second column
+    """
+    translation_dict = csvToTranslationDict(translation_file)
+    in_dict = torch.load(in_file_name)
+    out_dict = translateStateDicts(translation_dict,in_dict)
+    torch.save(out_dict,out_file_name)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("input_file",help="A serialized file you want to translate the keys from")
+parser.add_argument("output_file",help="A new file you want to translate the keys to")
+parser.add_argument("translation_file",help="A CSV file used to map input_file's keys to output_file's ones")
+
+args = parser.parse_args()
+
+if __name__ == "__main__":
+    translateSerializedObjects(args.input_file,args.output_file,args.translation_file)
