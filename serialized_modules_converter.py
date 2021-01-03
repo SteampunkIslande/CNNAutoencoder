@@ -4,12 +4,22 @@ from itertools import zip_longest
 
 
 def saveOrderedDicts(serialized_dict, destination_dict, path):
+    """
+    :param serialized_dict: A dict you want to write the keys of in the first column of a csv file
+    :param destination_dict: A dict you want to write the keys of in the second column of a csv file
+    :param path: A string to the csv file you want to write the dicts to
+    :return: None
+    """
     f=open(path,"wt")
     for k1,k2 in zip_longest(serialized_dict.keys(),destination_dict.keys()):
         f.write(f"{k1},{k2}\n")
     f.close()
 
 def csvToTranslationDict(path):
+    """
+    :param path: Path to the CSV file where first column is key and second is value for the dict you want to return
+    :return: A dict, where keys are first column's lines and values are second column's lines from CSV at path
+    """
     f=open(path)
     result={}
     for line in f:
@@ -18,4 +28,33 @@ def csvToTranslationDict(path):
     return result
 
 def translateStateDicts(translation_dict,origin_dict):
+    """
+    :param translation_dict: A dict that maps origin_dict's keys to destination key names
+    :param origin_dict: A dict that contains keys you want to translate, and where the values come from
+    :return: A dict where values are from origin_dict, but their keys have been translated thanks to translation_dict
+    """
     return {translation_dict[k]: v for k,v in origin_dict.items()}
+
+def exportStateDictsToCSV(path_to_serialized_dict,models_dict,save_path):
+    """
+    :param path_to_serialized_dict: File name of a serialized dict you want to translate the keys of
+    :param models_dict: An actual dict with the keys you want to translate
+    :param save_path: Where to save a csv file containing keys from above dicts
+    """
+    saveOrderedDicts(torch.load(path_to_serialized_dict, map_location=lambda storage,loc : storage),models_dict,save_path)
+    print(f"Now, open {save_path} in the CSV editor of your choice, "
+          f"and make sure that every layer name from the left column has a matching layer name in the second column")
+
+def transferLearning(path_to_serialized_dict,model,translation_file_path):
+    """
+    To call this function successfully, you need a csv file containing two columns, where first maps keys from your serialized
+    dict you wish to serialize, to the second that contains keys from the translated dict.
+
+    :param path_to_serialized_dict: Path to a file containing keys you want to translate
+    :param model: The model you want to transfer the data to. The keys from serilized dict will be translated to keys this model accepts.
+    :param translation_file_path: Path to the CSV file containing translations (see above description)
+    :return:
+    """
+    translation_dict = csvToTranslationDict(translation_file_path)
+    serialized_dict = torch.load(path_to_serialized_dict, map_location=lambda storage,loc : storage)
+    model.load_state_dict(translateStateDicts(translation_dict,serialized_dict))
