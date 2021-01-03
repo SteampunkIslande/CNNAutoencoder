@@ -71,7 +71,7 @@ def translateSerializedObjects(in_file_name,out_file_name,translation_file):
     :param translation_file: A CSV file that translates key names from first column into other key names in the second column
     """
     translation_dict = csvToTranslationDict(translation_file)
-    in_dict = torch.load(in_file_name)
+    in_dict = torch.load(in_file_name,map_location=lambda storage,loc : storage)
     out_dict = translateStateDicts(translation_dict,in_dict)
     torch.save(out_dict,out_file_name)
 
