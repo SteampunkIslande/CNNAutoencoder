@@ -184,7 +184,7 @@ def createAndTrainModel(**kwargs):
         print(f"Starting epoch {epoch+1}...")
         loss = 0
         for index, (in_images, gt_images) in enumerate(aeDataloader):
-            print(f"\33[2K\r\tBatch {index+1}/{len(aeDataloader)}",end="")
+            print(f"\rBatch {index+1}/{len(aeDataloader)}             ",end="")
             in_images = in_images.to(device)
             gt_images = gt_images.to(device)
             optimizer.zero_grad()
@@ -203,7 +203,7 @@ def createAndTrainModel(**kwargs):
 
         lossLog.append((epoch, loss))
 
-        print(f"epoch [{epoch + 1}/{num_epochs}], loss:{loss:.4f}")
+        print(f"Epoch [{epoch + 1}/{num_epochs}], loss:{loss:.4f}")
 
         # We save the progress every save_frequency epoch
         if (epoch + 1) % save_frequency == 0:
