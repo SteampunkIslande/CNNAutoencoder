@@ -35,7 +35,7 @@ def renderTiles(input_array,tile_size,render_function):
 
 def loadModel(path):
     ae = UNet()
-    ae.load_state_dict(torch.load(path))
+    ae.load_state_dict(torch.load(path,map_location=lambda storage, loc: storage))
     ae.eval()
     return ae
 
