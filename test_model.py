@@ -2,8 +2,16 @@ import torch
 from unet import UNet
 from torchvision.transforms import ToPILImage, ToTensor
 
+from de_bayer import rgbToBayer
+
 import numpy as np
 from unet_dataset import pack_raw
+
+from PIL import Image
+
+from math import ceil
+
+import imghdr
 
 import argparse
 
@@ -16,9 +24,12 @@ class ModelRenderer():
         self.exposure_correction = exposure_correction
 
     def __call__(self, input_raw):
-        inTensor = ToTensor()(input_raw * self.exposure_correction).to(device).unsqueeze(0)
+        input_raw = input_raw * self.exposure_correction
+        input_raw = np.minimum(input_raw, 1)
+        inTensor = ToTensor()(input_raw).to(device).unsqueeze(0)
         outTensor = self.trained_model(inTensor)[0]
-        return outTensor.permute((1,2,0)).detach().cpu().numpy()
+        out = outTensor.permute((1,2,0)).detach().cpu().numpy()
+        return out
 
 def renderTiles(input_array,tile_size,render_function):
     result = np.array([[]])
@@ -29,8 +40,7 @@ def renderTiles(input_array,tile_size,render_function):
             growing_line = np.hstack([growing_line, renderedTile]) if growing_line.size else renderedTile
 
         result = np.vstack([result,growing_line]) if result.size else growing_line
-
-    return ((result+1)*127.5).astype(np.uint8)
+    return (result * 255).astype(np.uint8)
 
 
 def loadModel(path):
@@ -48,7 +58,14 @@ def renderImage(model,input_image,exposure_correction,tile_size):
     :return: a 3d numpy array of depth 3 representing the rendered image
     """
     renderer = ModelRenderer(model, exposure_correction)
-    input_array = pack_raw(input_image)
+    if imghdr.what(input_image):
+        input_array = rgbToBayer(np.asarray(Image.open(input_image))) # Since input_image is regular rgb image, need to convert it to raw...
+    else:
+        input_array = pack_raw(input_image)
+    h,w,_ = input_array.shape
+    padright = (ceil(w/tile_size)*tile_size)-w
+    paddown = (ceil(h/tile_size)*tile_size)-h
+    input_array = np.pad(input_array,((0,paddown),(0,padright),(0,0)))
     return renderTiles(input_array, tile_size, renderer)
 
 
