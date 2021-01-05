@@ -7,10 +7,15 @@ import torchvision
 from torch.utils.data import Dataset
 
 
-def pack_raw(file_name, bps=14):
+def pack_raw(file_name, bps=14, crop=None):
     raw = rawpy.imread(file_name)
     # pack Bayer image to 4 channels
     im = raw.raw_image_visible.astype(np.float32)
+    if crop:
+        assert len(crop) == 4,"You must provide a list-like object with 4 components describing a (X,Y,W,H) rectangle"
+        X,Y,W,H = crop
+        im = im[Y:Y+H,X:X+W]
+
     im = np.maximum(im - 512, 0) / ((2 ** bps - 1) - 512)  # subtract the black level
 
     im = np.expand_dims(im, axis=2)
