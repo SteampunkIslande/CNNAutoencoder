@@ -58,7 +58,7 @@ def renderImage(model,input_image,exposure_correction,tile_size):
     :return: a 3d numpy array of depth 3 representing the rendered image
     """
     renderer = ModelRenderer(model, exposure_correction)
-    if imghdr.what(input_image):
+    if not input_image.endswith(".ARW"):
         input_array = rgbToBayer(np.asarray(Image.open(input_image))) # Since input_image is regular rgb image, need to convert it to raw...
     else:
         input_array = pack_raw(input_image)
