@@ -1,20 +1,27 @@
-import imghdr
-import os
-from random import shuffle
-
+import cv2
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
-from PIL import Image
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-from datetime import datetime
-import pytz  # So that this program's timezone is always french !
 
+def printTensor(t: torch.Tensor, name="conv"):
+    t = t.clone().detach()
+    for frameNo in range(t.shape[1]):
+        frame = t[0, frameNo, :, :]
+        frame = frame.numpy() * 255
+        bottomLeftCornerOfText = (10, frame.shape[0] - 10)
+        fontScale = 2
+        fontColor = (255, 255, 255)
+        lineType = 2
+
+        cv2.putText(frame, f"{name}_channel_{frameNo + 1}",
+                    bottomLeftCornerOfText, None,
+                    fontScale,
+                    fontColor,
+                    lineType)
+        cv2.imwrite(f"test_images/{name}_channel_{frameNo + 1}.jpg", frame)
 
 
 class UNet(nn.Module):
@@ -88,8 +95,36 @@ class UNet(nn.Module):
         self.conv10 = nn.Conv2d(32, 12, (1, 1), stride=1)
 
     def forward(self, x):
+        conv1 = self.conv1(x)  # (N,32,H,W)
+        pool1 = self.pool1(conv1)  # (N,32,H/2,W/2)
+        conv2 = self.conv2(pool1)  # (N,64,H/2,W/2)
+        pool2 = self.pool2(conv2)  # (N,64,H/4,W/4)
+        conv3 = self.conv3(pool2)  # (N,128,H/4,W/4)
+        pool3 = self.pool3(conv3)  # (N,128,H/8,W/8)
+        conv4 = self.conv4(pool3)  # (N,256,H/8,W/8)
+        pool4 = self.pool4(conv4)  # (N,256,H/16,W/16)
+        conv5 = self.conv5(pool4)  # (N,512,H/32,
+        up6 = self.up6(conv5)
+        up6 = torch.cat([up6, conv4], 1)
+        conv6 = self.conv6(up6)
+        up7 = self.up7(conv6)
+        up7 = torch.cat([up7, conv3], 1)
+        conv7 = self.conv7(up7)
+        up8 = self.up8(conv7)
+        up8 = torch.cat([up8, conv2], 1)
+        conv8 = self.conv8(up8)
+        up9 = self.up9(conv8)
+        up9 = torch.cat([up9, conv1], 1)
+        conv9 = self.conv9(up9)
+        conv10 = self.conv10(conv9)
+        return F.pixel_shuffle(conv10, 2)
+
+    def debuggedForward(self, x: torch.Tensor):
+        assert x.shape[0] == 1, "Can only debug tensors of shape (1,C,H,W)"
         conv1 = self.conv1(x)
+        printTensor(conv1, "conv1")
         pool1 = self.pool1(conv1)
+        printTensor(pool1, "pool1")
         conv2 = self.conv2(pool1)
         pool2 = self.pool2(conv2)
         conv3 = self.conv3(pool2)
@@ -109,125 +144,128 @@ class UNet(nn.Module):
         up9 = self.up9(conv8)
         up9 = torch.cat([up9, conv1], 1)
         conv9 = self.conv9(up9)
+        printTensor(conv9, "conv9")
         conv10 = self.conv10(conv9)
-        return F.pixel_shuffle(conv10, 2)
+        printTensor(conv10, "conv10")
+        finalResult = F.pixel_shuffle(conv10, 2)
+        printTensor(finalResult, "finalResult")
 
-
-def createAndTrainModel(**kwargs):
-    """
-    :param dataset: The dataset you want the autoencoder to be trained on.
-    Dataset's __getitem__ function should return a C,H,W-shaped tensor
-    :param batch_size: The size of the batches (defaults to 4)
-    :param learning_rate: The learning rate (defaults to 1e-3)
-    :param num_epochs: The number of epochs (defaults to 50)
-    :param criterion: The Loss function (defaults to L1Loss)
-    :param log_file_name: (very optional) Path to a file where to store the history of the training
-    :param optimizer: (optional) Callable that returns an actual optimizer (i.e. a proper optimizer factory)
-    :param save_frequency: Save model's state every save_frequency epoch
-    :param run_name: (optional) The name of the run, so that you can find it in the mess of directories this program will create
-    :return: a fully trained model AND the latest loss computed
-    """
-
-    assert "dataset" in kwargs, "No dataset provided (use dataset keyword argument)"
-    aeDataset = kwargs["dataset"]
-
-    if not isinstance(aeDataset, Dataset):
-        raise ValueError("Dataset provided is not a valid torch dataset")
-
-    if "batch_size" in kwargs:
-        batch_size = kwargs["batch_size"]
-    else:
-        batch_size = 4
-
-    if "run_name" in kwargs:
-        run_name = kwargs["run_name"]
-    else:
-        run_name = datetime.now(pytz.timezone("CET")).strftime("Run-%b-%d-%Hh%M")
-
-    if "learning_rate" in kwargs:
-        learning_rate = kwargs["learning_rate"]
-    else:
-        learning_rate = 1e-4
-
-    if "num_epochs" in kwargs:
-        num_epochs = kwargs["num_epochs"]
-    else:
-        num_epochs = 50
-
-    if "save_frequency" in kwargs:
-        save_frequency = kwargs["save_frequency"]
-    else:
-        save_frequency = 10
-
-    if save_frequency <= 0:
-        save_frequency = num_epochs  # If invalid save frequency (0 or less), we only save once at the end
-
-    aeDataloader = DataLoader(aeDataset, batch_size=batch_size, pin_memory=True)
-
-    model = UNet()
-    model.to(device)
-
-    if "criterion" in kwargs:
-        criterion = kwargs["criterion"]
-    else:
-        criterion = nn.L1Loss()
-
-    if "optimizer" in kwargs:
-        optimizer = kwargs["optimizer"](
-            model.parameters())  # In case an optimizer factory is specified, let's give it this model's parameters
-    else:
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-    lossLog = []
-
-    for epoch in range(num_epochs):
-        print(f"Starting epoch {epoch+1}...")
-        loss = 0
-        for index, (in_images, gt_images) in enumerate(aeDataloader):
-            print(f"\rBatch {index+1}/{len(aeDataloader)}             ",end="")
-            in_images = in_images.to(device)
-            gt_images = gt_images.to(device)
-            optimizer.zero_grad()
-
-            output = model(in_images)
-
-            train_loss = criterion(output,
-                                   gt_images)  # The goal is to denoise, so making this look like a noisy image is maybe not the best. To be continued...
-
-            train_loss.backward()
-            optimizer.step()
-
-            loss += train_loss.item()
-
-        loss = loss / (len(aeDataloader))
-
-        lossLog.append((epoch, loss))
-
-        print(f"Epoch [{epoch + 1}/{num_epochs}], loss:{loss:.4f}")
-
-        # We save the progress every save_frequency epoch
-        if (epoch + 1) % save_frequency == 0:
-            # Get French time stamp even if Colab's GPUs don't have consistent timezones
-            timeString = datetime.now(pytz.timezone("CET")).strftime("%b-%d-%Hh%M")
-            check_point_dict = {
-                "model_state_dict": model.state_dict(),
-                "epoch": epoch,
-                "optimizer_state_dict": optimizer.state_dict()
-            }
-            torch.save(check_point_dict, f"results/{run_name}_check_point_{timeString}_EPOCH_{epoch + 1}")
-
-    if "log_file_name" in kwargs:
-        f = open(kwargs["log_file_name"], "w")
-        f.write(f"Epoch,"
-                f"Loss,"
-                f"Criterion,"
-                f"LearningRate\n")
-        for epochX, lossY in lossLog:
-            f.write(f"{epochX}"
-                    f",{lossY},"
-                    f"{criterion.__class__.__name__},"
-                    f"{learning_rate}"
-                    f"\n")
-        f.close()
-
-    return model  # Return the trained model, and the latest training loss it yielded
+# # Below function is Obsolete
+# def createAndTrainModel(**kwargs):
+#     """
+#     :param dataset: The dataset you want the autoencoder to be trained on.
+#     Dataset's __getitem__ function should return a C,H,W-shaped tensor
+#     :param batch_size: The size of the batches (defaults to 4)
+#     :param learning_rate: The learning rate (defaults to 1e-3)
+#     :param num_epochs: The number of epochs (defaults to 50)
+#     :param criterion: The Loss function (defaults to L1Loss)
+#     :param log_file_name: (very optional) Path to a file where to store the history of the training
+#     :param optimizer: (optional) Callable that returns an actual optimizer (i.e. a proper optimizer factory)
+#     :param save_frequency: Save model's state every save_frequency epoch
+#     :param run_name: (optional) The name of the run, so that you can find it in the mess of directories this program will create
+#     :return: a fully trained model AND the latest loss computed
+#     """
+#
+#     assert "dataset" in kwargs, "No dataset provided (use dataset keyword argument)"
+#     aeDataset = kwargs["dataset"]
+#
+#     if not isinstance(aeDataset, Dataset):
+#         raise ValueError("Dataset provided is not a valid torch dataset")
+#
+#     if "batch_size" in kwargs:
+#         batch_size = kwargs["batch_size"]
+#     else:
+#         batch_size = 4
+#
+#     if "run_name" in kwargs:
+#         run_name = kwargs["run_name"]
+#     else:
+#         run_name = datetime.now(pytz.timezone("CET")).strftime("Run-%b-%d-%Hh%M")
+#
+#     if "learning_rate" in kwargs:
+#         learning_rate = kwargs["learning_rate"]
+#     else:
+#         learning_rate = 1e-4
+#
+#     if "num_epochs" in kwargs:
+#         num_epochs = kwargs["num_epochs"]
+#     else:
+#         num_epochs = 50
+#
+#     if "save_frequency" in kwargs:
+#         save_frequency = kwargs["save_frequency"]
+#     else:
+#         save_frequency = 10
+#
+#     if save_frequency <= 0:
+#         save_frequency = num_epochs  # If invalid save frequency (0 or less), we only save once at the end
+#
+#     aeDataloader = DataLoader(aeDataset, batch_size=batch_size, pin_memory=True)
+#
+#     model = UNet()
+#     model.to(device)
+#
+#     if "criterion" in kwargs:
+#         criterion = kwargs["criterion"]
+#     else:
+#         criterion = nn.L1Loss()
+#
+#     if "optimizer" in kwargs:
+#         optimizer = kwargs["optimizer"](
+#             model.parameters())  # In case an optimizer factory is specified, let's give it this model's parameters
+#     else:
+#         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+#
+#     lossLog = []
+#
+#     for epoch in range(num_epochs):
+#         print(f"Starting epoch {epoch + 1}...")
+#         loss = 0
+#         for index, (in_images, gt_images) in enumerate(aeDataloader):
+#             print(f"\rBatch {index + 1}/{len(aeDataloader)}             ", end="")
+#             in_images = in_images.to(device)
+#             gt_images = gt_images.to(device)
+#             optimizer.zero_grad()
+#
+#             output = model(in_images)
+#
+#             train_loss = criterion(output,
+#                                    gt_images)  # The goal is to denoise, so making this look like a noisy image is maybe not the best. To be continued...
+#
+#             train_loss.backward()
+#             optimizer.step()
+#
+#             loss += train_loss.item()
+#
+#         loss = loss / (len(aeDataloader))
+#
+#         lossLog.append((epoch, loss))
+#
+#         print(f"Epoch [{epoch + 1}/{num_epochs}], loss:{loss:.4f}")
+#
+#         # We save the progress every save_frequency epoch
+#         if (epoch + 1) % save_frequency == 0:
+#             # Get French time stamp even if Colab's GPUs don't have consistent timezones
+#             timeString = datetime.now(pytz.timezone("CET")).strftime("%b-%d-%Hh%M")
+#             check_point_dict = {
+#                 "model_state_dict": model.state_dict(),
+#                 "epoch": epoch,
+#                 "optimizer_state_dict": optimizer.state_dict()
+#             }
+#             torch.save(check_point_dict, f"results/{run_name}_check_point_{timeString}_EPOCH_{epoch + 1}")
+#
+#     if "log_file_name" in kwargs:
+#         f = open(kwargs["log_file_name"], "w")
+#         f.write(f"Epoch,"
+#                 f"Loss,"
+#                 f"Criterion,"
+#                 f"LearningRate\n")
+#         for epochX, lossY in lossLog:
+#             f.write(f"{epochX}"
+#                     f",{lossY},"
+#                     f"{criterion.__class__.__name__},"
+#                     f"{learning_rate}"
+#                     f"\n")
+#         f.close()
+#
+#     return model  # Return the trained model, and the latest training loss it yielded

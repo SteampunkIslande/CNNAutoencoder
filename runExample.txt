@@ -1,0 +1,1 @@
+python train_model.py "C:\Users\Charles\PycharmProjects\CNNAutoEncoder\dataset\Sony\Sony_train_filtered.txt" --batch_size 1 --epochs 200 --log_file_name 200EpochsBatchSize1.csv --save_frequency 20 --run_name FirstOne --model_name FirstResult --validation_set "C:\Users\Charles\PycharmProjects\CNNAutoEncoder\dataset\Sony\Sony_val_list.txt" --optimizer_params basicAdamOptimizer.json

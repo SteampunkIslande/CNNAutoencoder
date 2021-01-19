@@ -1,10 +1,10 @@
-import torch
-from unet import UNet
-import torchvision
-
 import argparse
 
+import torch
+import torchvision
+
 from test_model import renderImage
+from unet import UNet
 
 toPIL = torchvision.transforms.ToPILImage()
 

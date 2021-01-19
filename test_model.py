@@ -1,19 +1,14 @@
+import argparse
+from math import ceil
+
+import numpy as np
 import torch
-from unet import UNet
+from PIL import Image
 from torchvision.transforms import ToPILImage, ToTensor
 
 from de_bayer import rgbToBayer
-
-import numpy as np
+from unet import UNet
 from unet_dataset import pack_raw
-
-from PIL import Image
-
-from math import ceil
-
-import imghdr
-
-import argparse
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -49,7 +44,7 @@ def loadModel(path):
     ae.eval()
     return ae
 
-def renderImage(model,input_image,exposure_correction,tile_size):
+def renderImage(model,input_image,exposure_correction,tile_size,bps=14):
     """
     :param model: The loaded model you want to render input_image with
     :param input_image: Path to an image you want to correct exposure
@@ -58,10 +53,10 @@ def renderImage(model,input_image,exposure_correction,tile_size):
     :return: a 3d numpy array of depth 3 representing the rendered image
     """
     renderer = ModelRenderer(model, exposure_correction)
-    if not input_image.endswith(".ARW"):
+    if not input_image.endswith(".ARW") and not input_image.endswith("dng") and not input_image.endswith("CR2"):
         input_array = rgbToBayer(np.asarray(Image.open(input_image))) # Since input_image is regular rgb image, need to convert it to raw...
     else:
-        input_array = pack_raw(input_image)
+        input_array = pack_raw(input_image,bps)
     h,w,_ = input_array.shape
     padright = (ceil(w/tile_size)*tile_size)-w
     paddown = (ceil(h/tile_size)*tile_size)-h
@@ -79,11 +74,12 @@ if __name__ == "__main__":
     parser.add_argument("exposure_correction", help="Exposure correction ratio for rendering", type=float)
 
     parser.add_argument("-o", "--output", help="Where to save the result")
+    parser.add_argument("-d", "--bitdepth", help="How many bits per subpixel", type=int,default=14)
     parser.add_argument("--tile_size", default=256, type=int)
 
     args = parser.parse_args()
     model = loadModel(args.model_file_name)
-    output_array = renderImage(model,args.image,args.exposure_correction,args.tile_size)
+    output_array = renderImage(model,args.image,args.exposure_correction,args.tile_size,args.bitdepth)
     image = ToPILImage()(output_array)
     output_fn = args.output if args.output else "result.jpg"
     image.save(output_fn)

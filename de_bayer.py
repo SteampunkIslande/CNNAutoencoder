@@ -1,5 +1,6 @@
 import numpy as np
 
+# Shooutout to https://answers.opencv.org/question/114387/how-to-convert-from-bgr-to-bayerrg/ for rgbToBayer
 
 def bayer2D_to_4_channels(im):
     im = np.maximum(im - 512, 0) / (16383 - 512)  # subtract the black level

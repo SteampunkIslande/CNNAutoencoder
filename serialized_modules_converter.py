@@ -1,8 +1,7 @@
-import torch
-
+import argparse
 from itertools import zip_longest
 
-import argparse
+import torch
 
 
 def saveOrderedDicts(serialized_dict, destination_dict, path):
@@ -75,12 +74,13 @@ def translateSerializedObjects(in_file_name,out_file_name,translation_file):
     out_dict = translateStateDicts(translation_dict,in_dict)
     torch.save(out_dict,out_file_name)
 
-parser = argparse.ArgumentParser()
-parser.add_argument("input_file",help="A serialized file you want to translate the keys from")
-parser.add_argument("output_file",help="A new file you want to translate the keys to")
-parser.add_argument("translation_file",help="A CSV file used to map input_file's keys to output_file's ones")
-
-args = parser.parse_args()
-
 if __name__ == "__main__":
-    translateSerializedObjects(args.input_file,args.output_file,args.translation_file)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input_file",help="A serialized file you want to translate the keys from")
+    parser.add_argument("output_file",help="A new file you want to translate the keys to")
+    parser.add_argument("translation_file",help="A CSV file used to map input_file's keys to output_file's ones")
+
+    args = parser.parse_args()
+
+    if __name__ == "__main__":
+        translateSerializedObjects(args.input_file,args.output_file,args.translation_file)

@@ -31,7 +31,7 @@ def pack_raw(file_name, bps=14, crop=None):
 
 
 class LocalFilesUnetDataset(Dataset):
-    def __init__(self,images_list_file_name, gt_path, in_path, count=100, bps=14, patch_size=256):
+    def __init__(self,dataset_path, images_list_file_name, count=100, bps=14, patch_size=256):
         f = open(images_list_file_name)
         self.in_images = []
         self.gt_images = []
@@ -42,18 +42,15 @@ class LocalFilesUnetDataset(Dataset):
                 break
             in_name, gt_name, _, _ = line.split(" ")
 
-            in_name = os.path.basename(in_name)
-            gt_name = os.path.basename(gt_name)
-            ratio = float(gt_name[9:-5]) / float(in_name[9:-5])
+            in_name_base = os.path.basename(in_name)
+            gt_name_base = os.path.basename(gt_name)
+            ratio = float(gt_name_base[9:-5]) / float(in_name_base[9:-5])
 
-            in_name = os.path.join(in_path, in_name)
-            gt_name = os.path.join(gt_path, gt_name)
+            self.in_images.append(pack_raw(os.path.join(dataset_path,in_name), bps) * ratio)
 
-            self.in_images.append(pack_raw(in_name, bps) * ratio)
-
-            gt_raw = rawpy.imread(gt_name)
+            gt_raw = rawpy.imread(os.path.join(dataset_path,gt_name))
             im = gt_raw.postprocess(use_camera_wb=True, half_size=False, no_auto_bright=True, output_bps=16)
-            self.gt_images.append(np.float32(im / 65535.0))
+            self.gt_images.append(np.float32(im / 65535.0))  # To get 0-1 range for ground truth image (because output bps was 16)
 
             i += 1
 
@@ -64,10 +61,10 @@ class LocalFilesUnetDataset(Dataset):
         self.npArrToTensor = torchvision.transforms.ToTensor()
 
         self.indices = list(range(len(self.gt_images)))
-        shuffle(self.indices)
+        shuffle(self.indices)  # To pre-shuffle image indices (so that __getitem__ returns randomly picked image)
 
-        self.in_patches=[] # Define in_patches now to avoid referenced before assignement error
-        self.gt_patches=[]
+        self.in_patches=[]  # Define in_patches now to avoid referenced before assignement error
+        self.gt_patches=[]  # Same for gt_patches
 
         self.generatePatches()
 
