@@ -27,7 +27,7 @@ crits = {
 }
 
 def trainModel(dataset, optimizer_factory, batch_size=4, num_epochs=50,
-               criterion=nn.L1Loss, log_file_name="vsc.csv",
+               criterion=nn.L1Loss(), log_file_name="vsc.csv",
                save_frequency=-1, run_name="blade_run", pretrained_path=None,
                checkpoint_path=None, validation_set=None):
     """
