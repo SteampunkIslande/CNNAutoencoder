@@ -23,7 +23,7 @@ def loadCheckpoint(path, model: torch.nn.Module, optimizer: torch.optim.Optimize
     :param optimizer: The optimizer you want to revert the state to
     :return: A tuple with model, epoch, and the reloaded optimizer
     """
-    checkpoint = torch.load(path, map_location=lambda storage, loc: storage)
+    checkpoint = torch.load(path)  # No mapping, the checkpoint was created on the same computer we are continuing the training on
     model.load_state_dict(checkpoint["model_state_dict"])  # Make sure that we always load the model into CPU
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     epoch = checkpoint["epoch"]
