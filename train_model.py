@@ -1,6 +1,7 @@
 import argparse
 import json
 from datetime import datetime
+from distutils.command.check import check
 
 import pytz
 import torch
@@ -71,7 +72,7 @@ def trainModel(dataset, optimizer_factory, batch_size=4, num_epochs=50,
     optimizer = optimizer_factory(model.parameters())
 
     if checkpoint_path is not None:
-        model,startingEpoch,optimizer = loadCheckpoint(pretrained_path,model,optimizer)
+        model,startingEpoch,optimizer = loadCheckpoint(checkpoint_path,model,optimizer)
     else:
         startingEpoch = 0
 
