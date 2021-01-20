@@ -7,7 +7,7 @@ from PIL import Image
 from torchvision.transforms import ToPILImage, ToTensor
 
 from de_bayer import rgbToBayer
-from unet import UNet
+from load_model import loadModel
 from unet_dataset import pack_raw
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,12 +37,6 @@ def renderTiles(input_array,tile_size,render_function):
         result = np.vstack([result,growing_line]) if result.size else growing_line
     return (result * 255).astype(np.uint8)
 
-
-def loadModel(path):
-    ae = UNet()
-    ae.load_state_dict(torch.load(path,map_location=lambda storage, loc: storage))
-    ae.eval()
-    return ae
 
 def renderImage(model,input_image,exposure_correction,tile_size,bps=14):
     """
@@ -78,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument("--tile_size", default=256, type=int)
 
     args = parser.parse_args()
-    model = loadModel(args.model_file_name)
+    model = loadModel(args.model_file_name,True)
     output_array = renderImage(model,args.image,args.exposure_correction,args.tile_size,args.bitdepth)
     image = ToPILImage()(output_array)
     output_fn = args.output if args.output else "result.jpg"
